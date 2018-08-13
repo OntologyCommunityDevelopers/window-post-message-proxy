@@ -289,7 +289,7 @@ export class WindowPostMessageProxy {
               }
 
               trackingProperties.target = trackingProperties.source;
-              trackingProperties.source = this.name;  
+              trackingProperties.source = this.name;
               this.sendResponse(sendingWindow, responseMessage, trackingProperties);
             });
 
