@@ -10,6 +10,8 @@ interface IDeferredCache {
 
 export interface ITrackingProperties {
   id: string;
+  source: string;
+  target?: string;
 }
 
 export interface IAddTrackingProperties {
@@ -169,9 +171,13 @@ export class WindowPostMessageProxy {
   /**
    * Post message to target window with tracking properties added and save deferred object referenced by tracking id.
    */
-  postMessage<T>(targetWindow: Window, message: any): Promise<T> {
+  postMessage<T>(targetWindow: Window, message: any, targetName?: string): Promise<T> {
     // Add tracking properties to indicate message came from this proxy
-    const trackingProperties: ITrackingProperties = { id: WindowPostMessageProxy.createRandomString() };
+    const trackingProperties: ITrackingProperties = {
+      id: WindowPostMessageProxy.createRandomString(),
+      source: this.name,
+      target: targetName
+    };
     this.addTrackingProperties(message, trackingProperties);
 
     if (this.logMessages) {
@@ -224,6 +230,13 @@ export class WindowPostMessageProxy {
     let trackingProperties: ITrackingProperties;
     try {
       trackingProperties = this.getTrackingProperties(message);
+
+      if (trackingProperties && trackingProperties.target != null) {
+        if (trackingProperties.target !== this.name) {
+          // skips messages which are not for me
+          return;
+        }
+      }
     }
     catch (e) {
       if (!this.suppressWarnings) {
@@ -274,6 +287,9 @@ export class WindowPostMessageProxy {
                   warning: warningMessage
                 };
               }
+
+              trackingProperties.target = trackingProperties.source;
+              trackingProperties.source = this.name;  
               this.sendResponse(sendingWindow, responseMessage, trackingProperties);
             });
 
