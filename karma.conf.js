@@ -6,7 +6,6 @@ module.exports = function (config) {
     // See: https://github.com/karma-runner/karma/issues/736
     files: [
       './node_modules/jquery/dist/jquery.js',
-      './node_modules/es6-promise/dist/es6-promise.js',
       './tmp/**/*.js',
       { pattern: './test/**/*.html', served: true, included: false }
     ],
