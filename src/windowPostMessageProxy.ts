@@ -41,6 +41,7 @@ export interface IWindowPostMessageProxyOptions {
   processTrackingProperties?: IProcessTrackingProperties;
   isErrorMessage?: IIsErrorMessage;
   name?: string;
+  target?: string;
   logMessages?: boolean;
   eventSourceOverrideWindow?: Window;
   suppressWarnings?: boolean;
@@ -93,6 +94,7 @@ export class WindowPostMessageProxy {
   // Private
   private logMessages: boolean;
   private name: string;
+  private target?: string;
   private addTrackingProperties: IAddTrackingProperties;
   private getTrackingProperties: IGetTrackingProperties;
   private isErrorMessage: IIsErrorMessage;
@@ -120,6 +122,7 @@ export class WindowPostMessageProxy {
     this.isErrorMessage = options.isErrorMessage || WindowPostMessageProxy.defaultIsErrorMessage;
     this.receiveWindow = options.receiveWindow || window;
     this.name = options.name || WindowPostMessageProxy.createRandomString();
+    this.target = options.target;
     this.logMessages = options.logMessages || false;
     this.eventSourceOverrideWindow = options.eventSourceOverrideWindow;
     this.suppressWarnings = options.suppressWarnings || false;
@@ -171,18 +174,17 @@ export class WindowPostMessageProxy {
   /**
    * Post message to target window with tracking properties added and save deferred object referenced by tracking id.
    */
-  postMessage<T>(targetWindow: Window, message: any, targetName?: string): Promise<T> {
+  postMessage<T>(targetWindow: Window, message: any): Promise<T> {
     // Add tracking properties to indicate message came from this proxy
     const trackingProperties: ITrackingProperties = {
       id: WindowPostMessageProxy.createRandomString(),
       source: this.name,
-      target: targetName
+      target: this.target
     };
     this.addTrackingProperties(message, trackingProperties);
 
     if (this.logMessages) {
-      console.log(`${this.name} Posting message:`);
-      console.log(JSON.stringify(message, null, '  '));
+      console.warn(`Proxy(${this.name}): Sending:`, JSON.stringify(message, null, '  '));
     }
 
     targetWindow.postMessage(message, "*");
@@ -200,8 +202,7 @@ export class WindowPostMessageProxy {
     this.addTrackingProperties(message, trackingProperties);
 
     if (this.logMessages) {
-      console.log(`${this.name} Sending response:`);
-      console.log(JSON.stringify(message, null, '  '));
+      console.warn(`Proxy(${this.name}): Responding:`, JSON.stringify(message, null, '  '));
     }
 
     targetWindow.postMessage(message, "*");
@@ -211,12 +212,6 @@ export class WindowPostMessageProxy {
    * Message handler.
    */
   private onMessageReceived(event: MessageEvent) {
-    if (this.logMessages) {
-      console.log(`${this.name} Received message:`);
-      console.log(`type: ${event.type}`);
-      console.log(JSON.stringify(event.data, null, '  '));
-    }
-
     let sendingWindow = this.eventSourceOverrideWindow || event.source;
     let message: any = event.data;
 
@@ -236,6 +231,10 @@ export class WindowPostMessageProxy {
           // skips messages which are not for me
           return;
         }
+      }
+
+      if (this.logMessages) {
+        console.warn(`Proxy(${this.name}): Receiving:`, JSON.stringify(event.data, null, '  '));
       }
     }
     catch (e) {
@@ -290,7 +289,7 @@ export class WindowPostMessageProxy {
 
               trackingProperties.target = trackingProperties.source;
               trackingProperties.source = this.name;
-              this.sendResponse(sendingWindow, responseMessage, trackingProperties);
+              this.sendResponse(sendingWindow as Window, responseMessage, trackingProperties);
             });
 
           return true;
