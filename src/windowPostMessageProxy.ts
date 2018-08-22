@@ -31,6 +31,10 @@ export interface IIsErrorMessage {
   (message: any): boolean;
 }
 
+export interface IExtractErrorMessage {
+  (message: any): any;
+}
+
 export interface IMessageHandler {
   test(message: any): boolean;
   handle(message: any): any;
@@ -40,6 +44,7 @@ export interface IWindowPostMessageProxyOptions {
   receiveWindow?: Window;
   processTrackingProperties?: IProcessTrackingProperties;
   isErrorMessage?: IIsErrorMessage;
+  extractErrorMessage?: IExtractErrorMessage;
   name?: string;
   target?: string;
   logMessages?: boolean;
@@ -59,6 +64,10 @@ export class WindowPostMessageProxy {
 
   static defaultIsErrorMessage(message: any): boolean {
     return !!message.error;
+  }
+
+  static defaultExtractErrorMessage(message: any): any {
+    return message.error;
   }
 
   private static messagePropertyName = "windowPostMessageProxy";
@@ -98,6 +107,7 @@ export class WindowPostMessageProxy {
   private addTrackingProperties: IAddTrackingProperties;
   private getTrackingProperties: IGetTrackingProperties;
   private isErrorMessage: IIsErrorMessage;
+  private extractErrorMessage: IExtractErrorMessage;
   private receiveWindow: Window;
   private pendingRequestPromises: IDeferredCache = {};
   private handlers: IMessageHandler[];
@@ -112,6 +122,7 @@ export class WindowPostMessageProxy {
         getTrackingProperties: WindowPostMessageProxy.defaultGetTrackingProperties
       },
       isErrorMessage: WindowPostMessageProxy.defaultIsErrorMessage,
+      extractErrorMessage: WindowPostMessageProxy.defaultExtractErrorMessage,
       receiveWindow: window,
       name: WindowPostMessageProxy.createRandomString()
     }) {
@@ -120,6 +131,7 @@ export class WindowPostMessageProxy {
     this.addTrackingProperties = (options.processTrackingProperties && options.processTrackingProperties.addTrackingProperties) || WindowPostMessageProxy.defaultAddTrackingProperties;
     this.getTrackingProperties = (options.processTrackingProperties && options.processTrackingProperties.getTrackingProperties) || WindowPostMessageProxy.defaultGetTrackingProperties;
     this.isErrorMessage = options.isErrorMessage || WindowPostMessageProxy.defaultIsErrorMessage;
+    this.extractErrorMessage = options.extractErrorMessage || WindowPostMessageProxy.defaultExtractErrorMessage;
     this.receiveWindow = options.receiveWindow || window;
     this.name = options.name || WindowPostMessageProxy.createRandomString();
     this.target = options.target;
@@ -321,7 +333,7 @@ export class WindowPostMessageProxy {
       }
 
       if (isErrorMessage) {
-        deferred.reject(message);
+        deferred.reject(this.extractErrorMessage(message));
       }
       else {
         deferred.resolve(message);
